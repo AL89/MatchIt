@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -174,6 +175,8 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 =======
+=======
+>>>>>>> origin/master
 .venv/
 __pycache__/
 *.pyc
@@ -182,5 +185,9 @@ build/
 *.egg-info/
 .ipynb_checkpoints
 .python-version
+<<<<<<< HEAD
 uv.lock
 >>>>>>> d4e1607 (Initial commit)
+=======
+uv.lock
+>>>>>>> origin/master
