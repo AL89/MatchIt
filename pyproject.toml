@@ -1,0 +1,21 @@
+[project]
+name = "MatchIt"
+version = "0.1.0"
+description = "A package for Padel match making and padel player rankings"
+readme = "README.md"
+license = { file = "MIT" }
+authors = [{name = "Andreas Løvgaard", email = "andreas@loevgaard.dk"}]
+requires-python = ">=3.13"
+
+dependencies = [
+    "pandas",
+    "pydantic",
+    "jupyter",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+# [tool.uv.scripts]
+# build = "python -m build"
