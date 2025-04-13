@@ -32,74 +32,11 @@ def __repr__(self):
         repr_str.append(f"Points: {self.points}")
     return "\n".join(repr_str)
 
-class Score(BaseModel,validate_assignment=True):
-    max_score: int = 32
-    team1_score: int = 0
-    team2_score: int = 0
-    finished: bool = False
-
-    @model_validator(mode='before')
-    @classmethod
-    def validate_score(cls,field_values:Any) -> Any:
-        max_score = field_values.get('max_score',cls.model_fields.get('max_score').default)
-        score1 = field_values.get('team1_score',cls.model_fields.get('team1_score').default)
-        score2 = field_values.get('team2_score',cls.model_fields.get('team2_score').default)
-        field_values['finished'] = True if (score1 + score2) == max_score else False
-        return field_values
-
-class TennisSet(BaseModel, validate_assignment=True):
-    team1_score: int = Field(ge=0,le=6,default=0)
-    team2_score: int = Field(ge=0,le=6,default=0)
-    finished: bool = False
-
-    @model_validator(mode='before')
-    @classmethod
-    def validate_set(cls,field_values:dict) -> dict:
-        score1 = field_values.get('team1_score',cls.model_fields.get('team1_score').default)
-        score2 = field_values.get('team2_score',cls.model_fields.get('team2_score').default)
-        
-        finished = True if \
-            (score1 == 6 and (score1 - score2) >= 2) or \
-            (score1 == 7 and (score1 - score2) >= 1) or \
-            (score2 == 6 and (score2 - score1) >= 2) or \
-            (score2 == 7 and (score2 - score1) >= 1) \
-            else False
-        field_values['finished'] = finished
-        return field_values
-    
-class TennisScore(Score,validate_assignment = True):
-    max_score: int = 5
-    sets: List[TennisSet] = [TennisSet()]
-
-    @model_validator(mode='before')
-    @classmethod
-    def validate_sets(cls,field_values:dict) -> dict:       
-        score1 = 0
-        score2 = 0
-        for s in field_values['sets']:
-            if s.finished:
-                score1 += 1 if s.team1_score > s.team2_score else 0
-                score2 += 1 if s.team2_score > s.team1_score else 0
-        
-        field_values['team1_score'] = score1
-        field_values['team2_score'] = score2
-        return field_values
-
-    @computed_field
-    def current_set(self) -> TennisSet:
-        return self.sets[-1]
-    
-    def next_set(self):
-        self.sets.append(TennisSet())
-
 class Match(BaseModel,validate_assignment=True):
     team1: List[Player] = Field(min_length=2,max_length=2)
     team2: List[Player] = Field(min_length=2,max_length=2)
-    # scores: Score = Score()
     team1_score: int = 0
-    # __team1_score: int = 0
     team2_score: int = 0
-    # __team2_score: int = 0
     tournament_name: Optional[str] = None
     game_type: Optional[str] = None
     padel_round: int = 1
@@ -122,83 +59,6 @@ class Match(BaseModel,validate_assignment=True):
         if not winner_team:
             return False
         return self.team1 if winner_team == self.team2 else self.team2
-    # @computed_field
-    # def scores_settled(self) -> bool:
-    #     return self.team1_score > 0 and self.team2_score > 0
-
-    # @field_validator('team1_score','team2_score',mode='after')
-    # @model_validator(mode='after')
-    # # @classmethod
-    # def update_player_scores(self) -> "Match":
-    #     if not self.scores_settled:
-    #         for player in self.team1:
-    #             player.points += self.team1_score
-    #         for player in self.team2:
-    #             player.points += self.team2_score
-    #     else:
-
-
-    #     if self.winner() is not None:
-    #         for player in self.winner():
-    #             player.win += 1
-    #             player.draw -= 1 if not player.draw <= 0 else 0
-    #         for player in self.loser():
-    #             player.loss += 1
-    #             player.draw -= 1 if not player.draw <= 0 else 0
-    #     else:
-    #         for player in self.team1 + self.team2:
-    #             player.draw += 1
-    #     return self
-
-    # def winner(self) -> Union[List[Player],None]:
-    #     if self.team1_score > self.team2_score:
-    #         winner = self.team1
-    #     elif self.team2_score > self.team1_score:
-    #         winner = self.team2
-    #     else:
-    #         winner = False
-    #     return winner
-    
-    # def loser(self) -> Union[List[Player],None]:
-    #     winner = self.winner()
-    #     # if winner is None:
-    #     #     return None
-    #     if not winner:
-    #         return False
-    #     return self.team1 if winner == self.team2 else self.team2
-    
-    # def update_player_scores(self):
-    #     if not self.scores_settled:
-    #     # if self.team1_score != 0 and self.team2_score != 0:
-    #         for player in self.team1:
-    #             player.points += self.team1_score
-    #         for player in self.team2:
-    #             player.points += self.team2_score
-            
-    #         self.__team1_score = self.team1_score
-    #         self.__team2_score = self.team2_score
-    #     if self.scores_settled:
-    #         if self.team1_score != self.__team1_score:
-    #             for player in self.team1:
-    #                 player.points -= self.__team1_score
-    #                 player.points += self.team1_score
-    #             self.__team1_score = self.team1_score
-    #         if self.team2_score != self.__team2_score:
-    #             for player in self.team2:
-    #                 player.points -= self.__team2_score
-    #                 player.points += self.team2_score
-    #             self.__team2_score = self.team2_score
-    #     if self.winner() is not None:
-    #         if not self.winner():   # False
-    #             for player in self.team1 + self.team2:
-    #                 player.draw += 1
-    #         else:
-    #             for player in self.winner():
-    #                     player.win += 1
-    #                     player.draw -= 1 if not player.draw <= 0 else 0
-    #             for player in self.loser():
-    #                     player.loss += 1
-    #                     player.draw -= 1 if not player.draw <= 0 else 0
 
     def __repr__(self):
         repr_str = [
@@ -308,8 +168,10 @@ class Tournament(BaseModel):
 class Event(Tournament):
     round: int = 0
     rounds: Union[List[Round],List] = []
-    pairings: set = set()
     play_by: Literal['points','win'] = 'points'
+    # _teammate_history: Union[Dict,Dict[str,List[str]]] = {}
+    round_sitovers: Union[Dict,Dict[int, List[Player]]] = {}
+    event_type: str = 'Padel Event'
     
     @computed_field
     def max_rounds(self) -> int:
@@ -374,8 +236,41 @@ class Event(Tournament):
         random.shuffle(players)
         new_round = Round.from_player_list(players,round_no=round_no,**kwargs)
         self.rounds.append(new_round)
+    
+    def next_round(self):
+        self.update_player_scores()
+        self.update_player_list(method='round')
+        
+        total_players = len(self.player_list)
+        full_match_count = (total_players // 4) * 4
+        overflow = total_players % 4
+        
+        sitover_idx_start = (self.round - 1) * overflow % total_players if overflow else 0
+        sitovers = []
 
+        if overflow:
+            sitovers = self.player_list[sitover_idx_start:sitover_idx_start+overflow]
+            if len(sitovers) < overflow:
+                sitovers += self.player_list[0:overflow - len(sitovers)]
+        
+        # Remaining players for match generation
+        active_players = [p for p in self.player_list if p not in sitovers]
+        matches = []
+
+        for i in range(0,len(active_players),4):
+            match_players = active_players[i:i+4]
+            matches.append(
+                Match.from_player_list(player_list=match_players,round_no=self.round,tournament_name=self.name,game_type=self.event_type)
+            )
+
+        self.rounds.append(
+            Round(round_no=self.round,matches=matches)
+        )
+        self.update_player_list(method='round')
+        
 class Americano(Event):
+    event_type: str = 'Americano'
+
     @field_validator('player_list')
     @classmethod
     def validate_player_count(cls,v:List[Player]) -> List[Player]:
@@ -384,104 +279,45 @@ class Americano(Event):
         return v
 
     def next_round(self):
-        # if not self.rounds:
-        #     self.randomize_new_round(
-        #         round_no=1,tournament_name=self.name,game_type='Americano'
-        #     )
-        #     pairings = self.current_round.team_pairings
-        #     for pairing in pairings:
-        #         team_pairing = frozenset([p.name for p in pairing])
-        #         self.pairings.add(team_pairing)
-        #     return 
-
-        # latest_round:Round = self.current_round
-        # self.update_player_list()
+        self.update_player_scores()
+        self.update_player_list(method='round')
         player_list = self.player_list
         round_player_list = []
         self.round = len(self.rounds) + 1 if self.rounds else 1
 
         matches = []
         while len(player_list) >= 4:
-            # for combination in combinations(player_list,4):
-            # combination = player_list[:4]
             combination = [player_list[0]] + player_list[2:4] + [player_list[1]]
             if self.rounds:
                 randomize_count = 0
                 while any([r.is_combination(combination) for r in self.rounds]):
                     random.shuffle(player_list)
                     combination = [player_list[0]] + player_list[2:4] + [player_list[1]]
-                    
-                    # If the number of rounds + 1 is equal to number of players, terminate
+
                     if self.max_rounds + 1 <= self.round: # len(self.players):
-                        # break
                         randomize_count += 1
                     
-                    if randomize_count == 3:        
+                    if randomize_count == 3:       # 
                         break
-                # if self.rounds:
-                #     combination = [combination[0]] + list(combination[2:]) + [combination[1]]
-                    
 
-                #     if any([r.is_combination(combination) for r in self.rounds]):
-                #         continue
-
-            # for i in range(0,player_list,4):
             team1 = combination[:2]
             team2 = combination[2:]
-                # team1 = (player_list[i],player_list[i+1])
-                # team2 = (player_list[i+2],player_list[i+3])
-
-
-            # player_list = [player_list[0]] + player_list[-1:] + player_list[1:-1]       # Shuffle player_list a bit
-            # for combination in combinations(player_list,4):
-            #     if self.rounds and any([r.is_combination(combination) for r in self.rounds]):
-            #         continue
-
-                # p1, p2, p3, p4 = combination                    # Set the players
-                # team1, team2 = [p1, p2], [p3, p4]
             matches.append(
-                Match(padel_round=self.round,team1=team1,team2=team2,tournament_name=self.name,game_type='Americano')
+                Match(padel_round=self.round,team1=team1,team2=team2,tournament_name=self.name,game_type=self.game_type)
                         # Match.from_player_list(player_list=list(combination),round_no=self.round,tournament_name=self.name,game_type='Americano')
             )
             for p in combination:
                 player_list.remove(p)
                 round_player_list.append(p)
-                # break
-                
-                # if not any([r.is_pair(team1) for r])
 
-                # team1_names, team2_names = frozenset([p1.name,p2.name]), frozenset([p3.name,p4.name])
-                # if team1_names not in self.pairings and team2_names not in self.pairings:
-                #     self.pairings.add(team1_names)
-                #     self.pairings.add(team2_names)
-                # # if not any([r.is_pair(team1) for r in self.rounds]) and not any([r.is_pair(team2) for r in self.rounds]):
-                #     matches.append(
-                #         Match(padel_round=self.round,team1=[p1,p2],team2=[p3,p4],tournament_name=self.name,game_type='Americano')
-                #         # Match.from_player_list(player_list=list(combination),round_no=self.round,tournament_name=self.name,game_type='Americano')
-                #     )
-                #     # new_player_list += list(combination)
-
-                #     for p in combination:
-                #         player_list.remove(p)
-                #     break
-
-                # if team1 not in self.pairings and team2 not in self.pairings:
-                #     self.pairings.add(team1)
-                #     self.pairings.add(team2)
-                #     new_player_list += list(combination)
-
-                #     for p in combination:
-                #         player_list.remove(p)
-                #     break
-        
-        # Create a new round
         self.rounds.append(
             Round(round_no=self.round,matches=matches)
         )
         self.update_player_list(method='round')
-        # self.player_list = round_player_list
 
 class Mexicano(Event):
+    event_type: str = 'Mexicano'
+
     @field_validator('player_list')
     @classmethod
     def validate_player_count(cls,v:List[Player]) -> List[Player]:
@@ -490,63 +326,47 @@ class Mexicano(Event):
         return v
 
     def next_round(self):
-        if not self.rounds:
-            self.randomize_new_round(
-                round_no=1,tournament_name=self.name,game_type='Mexicano'
+        self.update_player_scores()
+        self.update_player_list(method='points')
+        player_list = self.player_list
+        self.round = len(self.rounds) + 1 if self.rounds else 1
+
+        matches = []
+        for i in range(0,len(player_list),4):
+            group = player_list[i:i+4]
+
+            # Form teams: Best + worst vs 2nd + 3rd
+            team1 = [group[0],group[-1]]
+            team2 = [group[1],group[2]]
+
+            matches.append(
+                Match(padel_round=self.round,team1=team1,team2=team2,tournament_name=self.name,game_type=self.event_type)
+                        # Match.from_player_list(player_list=list(combination),round_no=self.round,tournament_name=self.name,game_type='Americano')
             )
-            return
-        
-        # TODO: What happens for rounds > 1
 
-def americano(players):
-    """
-    Simulates an Americano tournament where players are paired
-    with and against different players across multiple rounds.
-    
-    Args:
-        players: List of player names (or IDs).
-    
-    Returns:
-        A list of rounds with match pairings.
-    """
-    if len(players) % 2 != 0:
-        raise ValueError("Number of players must be even for Americano.")
-    
-    total_rounds = len(players) - 1
-    half = len(players) // 2
-    schedule = []
-
-    # Rotate players to create pairs
-    for round_idx in range(total_rounds):
-        pairs = []
-        for i in range(half):
-            p1 = players[i]
-            p2 = players[-i-1]
-            pairs.append((p1, p2))
-        # Append the round matches
-        schedule.append(pairs)
-        # Rotate players (keep first player fixed)
-        players = [players[0]] + players[-1:] + players[1:-1]
-    
-    return schedule
+        self.rounds.append(
+            Round(round_no=self.round,matches=matches)
+        )
+        self.update_player_list(method='points')
 
 # %%
 
 
 if __name__ == '__main__':
-    player1 = Player(id=1,name='Andreas')
-    player2 = Player(id=2,name='Cindy')
-    player3 = Player(id=3,name='Michael')
-    player4 = Player(id=4,name='Tijana')
-    team1 = [player1,player2]
-    team2 = [player3,player4]
-    match_p = Match(id=1,team1=team1,team2=team2)
-    match_p.scores.team1_score = 17
-    match_p.scores.team2_score = 15
+    # Sample players
+    players = [Player(name=name) for name in ['A','B','C','D','E','F','G','H']]
 
-    # Example usage Americano
-    players = ["A", "B", "C", "D", "E", "F", "G", "H"]
-    tournament_schedule = americano(players)
-    for i, round in enumerate(tournament_schedule, start=1):
-        print(f"Round {i}: {round}")
+    mexicano_event = Mexicano(id=1,name='Americano Event',player_list=players)
+    mexicano_event.next_round()
+
+    # player1 = Player(id=1,name='Andreas')
+    # player2 = Player(id=2,name='Cindy')
+    # player3 = Player(id=3,name='Michael')
+    # player4 = Player(id=4,name='Tijana')
+    # team1 = [player1,player2]
+    # team2 = [player3,player4]
+    # match_p = Match(id=1,team1=team1,team2=team2)
+    # match_p.scores.team1_score = 17
+    # match_p.scores.team2_score = 15
+
 # %%

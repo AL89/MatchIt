@@ -1,0 +1,1 @@
+[![PyPI version](https://badge.fury.io/py/matchit.svg)](https://pypi.org/project/MatchIt/)
