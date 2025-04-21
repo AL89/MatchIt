@@ -1,6 +1,6 @@
 [project]
 name = "MatchIt"
-version = "0.2.0"
+version = "0.2.5"
 description = "A package for Padel match making and padel player rankings"
 readme = "README.md"
 license = { file = "MIT" }
