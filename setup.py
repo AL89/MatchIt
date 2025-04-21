@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 
 setup(name="matchit",
-      version="0.2.5",
+      version="0.2.6",
       description="A package for Padel match making and padel player rankings",
       long_description=long_description,
       long_description_content_type="text/markdown",
@@ -21,5 +21,5 @@ setup(name="matchit",
             "License :: OSI Approved :: MIT License",
             "Programming Language :: Python :: 3.13",
         ],
-        python_requires='>=3.8',
+        python_requires='>=3.13',
     )
