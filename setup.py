@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 
 setup(name="matchit",
-      version="0.2.6",
+      version="0.2.7",
       description="A package for Padel match making and padel player rankings",
       long_description=long_description,
       long_description_content_type="text/markdown",
@@ -13,8 +13,7 @@ setup(name="matchit",
       packages=find_packages(),
       install_requires=[
           "pandas",
-          "pydantic",
-          "jupyter"
+          "pydantic"
       ],
         classifiers=[
             "Programming Language :: Python :: 3",

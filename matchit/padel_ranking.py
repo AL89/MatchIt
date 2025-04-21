@@ -5,33 +5,25 @@ from .padel_player import Player
 from .padel_match import Match
 from .padel_algorithms import match_seeding_points
 
-class RankingPlayer(Player):
-    seeding_score: int = 500    # https://en.wikipedia.org/wiki/Elo_rating_system
-
-    def __repr__(self) -> str:
-        repr_str = super().__repr__().split('\n')
-        repr_str.append(f"Score: {self.seeding_score}")
-        return "\n".join(repr_str)
-
-def get_player_rankings() -> Union[List,List[RankingPlayer]]:
+def get_player_rankings() -> Union[List,List[Player]]:
     import os
     if not os.path.isfile('player_rankings.xlsx'):
         return []
     
     df = pd.read_excel('player_rankings.xlsx',sheet_name=0)
-    players = [RankingPlayer(name=player['name'],seeding_score=player['score']) for _, player in df.iterrows()]
+    players = [Player(name=player['name'],seeding_score=player['score']) for _, player in df.iterrows()]
     return players
 
-def ranking_player_list(player_names:List[str]) -> List[RankingPlayer]:
+def ranking_player_list(player_names:List[str]) -> List[Player]:
     players = get_player_rankings()
     for player in player_names:
         if player not in players:           # Hvis ny spiller
-            new_player = RankingPlayer(name=player)
+            new_player = Player(name=player)
             players.append(new_player)
     return players
 
 class GroupRankingMatches(BaseModel):
-    player_list: List[RankingPlayer] = Field(min_length=4,max_length=4)
+    player_list: List[Player] = Field(min_length=4,max_length=4)
     matches: List[Match]
     k: int = 32
 
@@ -69,7 +61,7 @@ class GroupRankingMatches(BaseModel):
 
 class RankingGames(BaseModel):
     event_name: str = 'Padel Rank Games'
-    player_list: List[RankingPlayer] = Field(min_length=4)
+    player_list: List[Player] = Field(min_length=4)
     groups: List[GroupRankingMatches]
     score_by: Literal['score','win'] = 'score'
     k: int = 32
