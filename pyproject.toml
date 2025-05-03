@@ -1,6 +1,6 @@
 [project]
 name = "MatchIt"
-version = "0.2.8"
+version = "0.2.9"
 description = "A package for Padel match making and padel player rankings"
 readme = "README.md"
 license = { file = "MIT" }
@@ -20,8 +20,8 @@ build-backend = "setuptools.build_meta"
 # [tool.setuptools]
 # packages = ["matchit"]
 
-# [tool.setuptools.packages.find]
-# where = ["."]
+[tool.setuptools.packages.find]
+where = ["."]
 
 [tool.setuptools.package-data]
 "matchit" = ["assets/*.svg"]

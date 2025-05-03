@@ -94,6 +94,12 @@ class Round(BaseModel,validate_assignment=True):
         all_combs = [self.is_pair(pair1),self.is_pair(pair2)]
         # all_combs = [self.player_list[i]==combination[i] for i in range(len(combination))]
         return any(all_combs)
+    
+    def same_sitovers(self,other:"Round") -> bool:
+        if not self.sitovers and not other.sitovers:
+            return False
+        else:
+            return any([p in other.sitovers for p in self.sitovers])
 
     @classmethod
     def from_player_list(cls,player_list:List[Player],round_no:int=1,**kwargs):
@@ -124,12 +130,15 @@ class Round(BaseModel,validate_assignment=True):
         return cls(round_no=round_no,matches=matches,sit_overs=sit_overs)
 
     def __eq__(self, other:"Round") -> bool:
+        # 1. Check the number of players
         if len(self.player_list) != len(other.player_list):
             return False
-        elif not self.sitovers and not other.sitovers:
-            return self.player_list == other.player_list
-        sitover_bool = any([p in other.sitovers for p in self.sitovers])
-        return sitover_bool
+        
+        # 2. Check if it is the same players. The length of players must equal each other
+        chk_player_list = [p for p in self.player_list if p in other.player_list]
+        if len(chk_player_list) != len(other.player_list):
+            return False
+        return True
 
     def __str__(self):
         return f"Round {self.round_no}"
@@ -137,8 +146,8 @@ class Round(BaseModel,validate_assignment=True):
     def __repr__(self):
         repr_str = [str(self)]
         repr_str.append(f"Matches: {len(self.matches)}")
-        if self.sit_overs:
-            repr_str(f"Sit overs: {len(self.sit_overs)}")
+        if self.sitovers:
+            repr_str(f"Sitovers: {len(self.sitovers)}")
         return "\n".join(repr_str) 
     
 # def new_padel_round(player_list:List[Player],round_no:int=1,**kwargs) -> Round:
@@ -167,31 +176,36 @@ class Round(BaseModel,validate_assignment=True):
     
 #     return Round(round_no=round_no,matches=matches,sitovers=sitovers)
 
-class Event(BaseModel):
+class Event(BaseModel,validate_assignment=True):
     event_name: str
     event_type: Literal['Random','Americano','Mexicano'] = 'Random'
     round: int = 0
     rounds: Union[List[Round],List] = []
     play_by: Literal['points','win'] = 'points'
-    player_list: List[Player] = Field(min_length=4)
+    player_list: Union[List[Player],List] = []
 
     @computed_field
     def max_rounds(self) -> int:
-        return len(self.rounds) - 1
+        return len(self.rounds)
 
     @computed_field
     def current_round(self) -> Optional[Round]:
         return self.rounds[-1] if self.rounds else None
     
-    @model_validator(mode='before')
-    @classmethod
-    def validate_event_type(cls,v:dict) -> "Event":
-        if v['event_type'] in ('Americano','Mexicano'):
-            if not len(v['player_list']) % 4 == 0:
-                raise ValueError('An Americano/Mexicano tournament event must have the number of players divisible by 4.')
-        return v
+    # @model_validator(mode='before')
+    # @classmethod
+    # def validate_event_type(cls,v:dict) -> "Event":
+    #     if v['event_type'] in ('Americano','Mexicano'):
+    #         if not len(v['player_list']) % 4 == 0:
+    #             raise ValueError('An Americano/Mexicano tournament event must have the number of players divisible by 4.')
+    #     return v
     
-    # @computed_field
+    def add_player(self,player:Player):
+        if player in self.player_list:
+            raise ValueError('Player already exists')
+        
+        self.player_list += [player]
+
     def standings(self,sort_by:Literal['points','win']='points',return_type:str='dataframe') -> Union[pd.DataFrame,Dict[str,Dict]]:
         if not self.rounds:
             return None
@@ -210,31 +224,46 @@ class Event(BaseModel):
         # return player_standings
     
     def update_player_scores(self):
-        for player in self.player_list:
-            player.points = 0
-            player.win = 0
-            player.loss = 0
-            player.draw = 0
+        player_dict = {
+            p.name:{
+                'points':0,
+                'win':0,
+                'loss':0,
+                'draw':0
+        } for p in self.player_list}
+
+        # for player in self.player_list:
+        #     player.points = 0
+        #     player.win = 0
+        #     player.loss = 0
+        #     player.draw = 0
 
         for round in self.rounds:
             for m in round.matches:
                 for player in m.team1:
-                    player.points += m.team1_score
+                    player_dict[player.name]['points'] += m.team1_score
+                    # player.points += m.team1_score
                 for player in m.team2:
-                    player.points += m.team2_score
+                    player_dict[player.name]['points'] += m.team2_score
+                    # player.points += m.team2_score
                 
                 if not m.winner:
                     for player in m.team1 + m.team2:
-                        player.draw += 1
+                        player_dict[player.name]['draw'] += 1
+                        # player.draw += 1
                 else:
                     for player in m.winner:
-                        player.win += 1
+                        player_dict[player.name]['win'] += 1
+                        # player.win += 1
                     for player in m.loser:
-                        player.loss += 1
+                        player_dict[player.name]['loss'] += 1
+                        # player.loss += 1
+        
+        self.player_list = [Player(name=name,**v) for name,v in player_dict.items()]
 
     def update_player_list(self,method:Literal['round','points','seeding_score','win']='round'):
         all_players = self.current_round.player_list.copy() if self.rounds else self.player_list.copy()
-        if method in ('win','points','seeding_score'):
+        if method in ('win','points','seeding_score') and all_players:
             all_players.sort(key=lambda p: getattr(p,method),reverse=True)
             # self.player_list = self.current_round.player_list if self.rounds else self.player_list
         # elif method == 'points':
@@ -243,15 +272,38 @@ class Event(BaseModel):
         #     # self.player_list.sort(key=lambda p: getattr(p,'points'),reverse=True)
         # elif method == 'seeding':
         #     all_players.sort(key=lambda p: getattr(p,'seeding_score'),reverse=True)
-        self.players = {p.id:p for p in all_players}
+        self.player_list = all_players
 
-    def randomize_new_round(self,**kwargs) -> Round:
+    def add_round(self,round:Round,raise_sitover_error=True):
+        if not self.rounds: # First round, just add it
+            round.round_no = 1
+        else:   # Round > 1
+            round.round_no = self.round + 1        # Adjust round number
+            if not all([round==r for r in self.rounds]):    # Check same players
+                raise ValueError('Must be the same players as previous rounds.')
+            if all([round.same_sitovers(r) for r in self.rounds]):  # Check sitovers
+                msg = 'Some of the players has more than 1 sitover'
+                if raise_sitover_error:
+                    raise ValueError(msg)
+                else:
+                    print(f'Warning: {msg}')
+
+        self.rounds.append(round)
+        self.round += 1
+
+    def randomize_new_round(self,**kwargs) -> Optional[Round]:
         players = self.player_list
-        random.shuffle(players)
-        random_round = Round.from_player_list(players,round_no=self.round,**kwargs)
-        return random_round
+        if len(players) >= 4:
+            random.shuffle(players)
+            random_round = Round.from_player_list(players,round_no=self.round,**kwargs)
+            return random_round
+        else:
+            raise ValueError('There must be at least 4 players.')
     
     def next_round(self,update_players=True,method:Literal['round','points','seeding_score','win']='round',**kwargs):
+        if len(self.player_list) < 4:
+            raise ValueError('There must be at least 4 players.')
+        
         if self.event_type == 'Mexicano':   # Pre-settings for Mexicano
             update_players = True
             method = 'points'
@@ -259,7 +311,6 @@ class Event(BaseModel):
             self.update_player_scores()
             self.update_player_list(method=method)
         
-        self.round = len(self.rounds) + 1
         if self.event_type == 'Random':
             new_round = self.randomize_new_round(**kwargs)
             while new_round in self.rounds:
@@ -267,6 +318,8 @@ class Event(BaseModel):
         else:
             matches = []
             player_list = self.player_list.copy()
+            if not len(player_list) % 4 == 0:
+                raise ValueError('An Americano/Mexicano tournament event must have the number of players divisible by 4.')
             while len(player_list) >= 4:
                 combination = player_list[:4]
                 if self.rounds and self.event_type == 'Americano':
@@ -275,7 +328,7 @@ class Event(BaseModel):
                         random.shuffle(player_list)
                         combination = [player_list[0]] + player_list[2:4] + [player_list[1]]
 
-                        if self.max_rounds + 1 <= self.round: # len(self.players):
+                        if self.max_rounds <= self.round:
                             randomize_count += 1
                         
                         if randomize_count == 3:       # 
@@ -294,7 +347,7 @@ class Event(BaseModel):
                 for p in combination:
                     player_list.remove(p)
 
-            new_round = Round(round_no=self.round,matches=matches)
+            new_round = Round(round_no=self.round+1,matches=matches)
         self.rounds.append(new_round)
         self.round += 1
     
@@ -302,6 +355,19 @@ class Event(BaseModel):
         for i in range(n_rounds):
             self.next_round(update_players=False,**kwargs)
 
+    def __str__(self):
+        return self.event_name
+    
+    def __repr__(self):
+        repr_str = [str(self)]
+        if self.event_type in ['Americano','Mexicano']:
+            repr_str.append(f"{self.event_type} event. Game by {self.play_by}")
+        if self.round > 0:
+            repr_str.append(f'Number of rounds played: {self.round}')
+        if len(self.player_list) >= 4:
+            repr_str.append(f'Number of players: {len(self.player_list)}')
+        return "\n".join(repr_str)
+        
 # class Americano(Event):
 #     @field_validator('event_type')
 #     @classmethod
